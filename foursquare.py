@@ -1,31 +1,56 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import csv
 import json
 import getpass
 import requests
 import optparse
+import cookielib
 import foursquare
 from bs4 import BeautifulSoup as BS
 
-parser = optparse.OptionParser('usage -t(get token)', version='%prog 1.0')
-parser.add_option('-t', '--get-token', action='store_true', dest='gettoken', default=False, help='get 4s token')
-parser.add_option('-r', '--read-file', dest='txt', type='string', help='read a list of client id and client secret')
+usage = 'Usage: %prog [options] arg1 arg2'
+parser = optparse.OptionParser(usage=usage, version='%prog 1.0')
+parser.add_option('-t', '--get-token', action='store_true', dest='gettoken', default=False, help='get one 4s token')
+parser.add_option('-l', '--input', dest='inputfile', type='string', help='input a file, returns a list of tokens')
+parser.add_option('-o', '--output', dest='outputfile', type='string', help='write tokens to file')
+#todo
+parser.add_option('-v', '--get-venues', action='store_true', dest='getvenue', default=False, help='get 4s venues')
+parser.add_option('-p', '--get-tips', action='store_true', dest='getvenue', default=False, help='get 4s tips')
 
 opts, args = parser.parse_args()
 
-# todo
 def read_file(filename):
-    print filename
+    print 'read ', filename
     cli_ids = []
-    cli_sec = []
-    return
+    cli_sec = [] 
+    token_list = []
+    with open(filename, 'r') as fr:
+        for i, line in enumerate(fr):
+            line = line.split('\n')[0]
+            if(i % 2 == 0):
+                cli_ids.append(line)
+            else:
+                cli_sec.append(line)
+
+    for i in range(len(cli_ids)):
+        token = get_token(cli_ids[i], cli_sec[i])
+        token_list.append(token)
+    
+    return token_list
+
+def write_file(token_list, filename):
+    with open(filename, 'w') as fw:
+        writer = csv.writer(fw)
+        for token in token_list:
+            writer.writerow([token])
 
 #todo
 def login(username, password):
+    return
 
-
-def get_token(cli_id, cli_sec, redirect_uri):
+def get_token(cli_id, cli_sec):
     client_id = cli_id
     client_secret = cli_sec
     client = foursquare.Foursquare(client_id=client_id, client_secret=client_secret, redirect_uri='http://127.0.0.1:3000/auth/return')
@@ -33,7 +58,11 @@ def get_token(cli_id, cli_sec, redirect_uri):
     home_url = 'https://foursquare.com/login'
     auth_url = client.oauth.auth_url()
     
+    #todo    
     session = requests.session()
+    session.cookies = cookielib.LWPCookieJar(filename = 'cookies')
+    print session.cookies
+#    session.cookies.load(ignore_discard = True)
 
     headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.86 Safari/537.36",
@@ -56,8 +85,14 @@ def get_token(cli_id, cli_sec, redirect_uri):
     #login
     resp = session.post(home_url, data, headers)
 
-    print 'get access token...'
+    if(resp.status_code != 200):
+        print 'login failure'
 
+#    session.cookies.save()
+
+    print 'get access token...'
+    
+    token = ''
     try:
         # for those first time get access token ,and for those already have the token will throw an exception
         html = session.get(auth_url).content
@@ -68,14 +103,15 @@ def get_token(cli_id, cli_sec, redirect_uri):
                 'fs-request-signature': _xsrf
                 }
         # the stmt will throw a exception when send data
-        resp1 = session.post(auth_url, data, headers)
+        resp = session.post(auth_url, data, headers)
     except requests.exceptions.ConnectionError, e:
         print 'access_token:'
         code = str(e).split('?')[1][5:53]
         access_token = client.oauth.get_token(code)
-        print access_token
+        token = access_token
+        print access_token 
 
-    return 
+    return token 
     
 def main():
     if opts.gettoken:
@@ -84,6 +120,15 @@ def main():
         redirect_uri = raw_input('Redirect uri: ')
         get_token(client_id, client_secret, redirect_uri)
 
+    if(opts.inputfile != None):
+        token_list = read_file(opts.inputfile)        
+    else:
+        parser.error('invalid input file name')
+
+    if(opts.outputfile != None):
+        write_file(token_list, opts.outputfile)
+    else:
+        parser.error('invalid output file name')
 
 if __name__ =='__main__':
     main()
