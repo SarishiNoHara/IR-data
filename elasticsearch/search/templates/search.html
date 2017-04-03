@@ -1,0 +1,21 @@
+<body class='body' >
+
+<form type="get" action="." style="margin: 0">
+    <input  id="search_box" type="text" name="search_box"  placeholder="Search..." >
+    <button id="search_submit" type="submit" >Submit</button>
+</form>
+
+    <div> 
+        {% block content %}
+        
+        {% for item in content %}
+        <h5>{{ item.name }}</h5>
+        address: {{ item.location.address }}
+        <br>
+        rating:    {{ item.rating }}
+
+        {% endfor %}
+        
+        {% endblock %}
+    </div>
+</body>
